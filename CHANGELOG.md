@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 — 2026-11-07
+
+- Password length starts at 16. The 12 preset is gone, and the slider cannot go below 16
+
 ## 1.0.1 — 2026-09-26
 
 - Save binary: raw UTF-8 bytes of the selected password (`.bin`), with no trailing newline

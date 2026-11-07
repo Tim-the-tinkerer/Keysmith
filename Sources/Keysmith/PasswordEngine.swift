@@ -129,9 +129,10 @@ struct GeneratedPassword: Identifiable, Equatable {
 
 enum PasswordEngine {
     static let minLength = 4
+    static let passwordMinLength = 16
     static let maxLength = 128
     static let maxCount = 50
-    static let lengthPresets = [12, 16, 24, 32, 48, 64]
+    static let lengthPresets = [16, 24, 32, 48, 64]
 
     static let uppercaseAll = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     static let lowercaseAll = Array("abcdefghijklmnopqrstuvwxyz")
@@ -208,6 +209,11 @@ enum PasswordEngine {
 
     static func clampedLength(_ length: Int) -> Int {
         min(maxLength, max(minLength, length))
+    }
+
+    /// Password length used by the window. Pins and the engine floor can be shorter.
+    static func clampedPasswordLength(_ length: Int) -> Int {
+        min(maxLength, max(passwordMinLength, length))
     }
 
     static func classify(_ ch: Character) -> CharClass {

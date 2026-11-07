@@ -4,7 +4,7 @@ A native macOS **password generator**. Draws cryptographically random characters
 
 ## Features
 
-- Length 4–128 (presets 12 / 16 / 24 / 32 / 48 / 64)
+- Length 16–128 (presets 16 / 24 / 32 / 48 / 64)
 - Independent toggles: uppercase, lowercase, numbers, special characters
 - Special sets: standard (`!@#$%^&*`), extended, or a custom set
 - Optional lookalike exclusion (`0 O o I l 1 |`)

@@ -99,12 +99,12 @@ struct ContentView: View {
                     get: { Double(model.options.length) },
                     set: { model.setLength(Int($0.rounded())) }
                 ),
-                in: Double(PasswordEngine.minLength)...Double(PasswordEngine.maxLength),
+                in: Double(PasswordEngine.passwordMinLength)...Double(PasswordEngine.maxLength),
                 step: 1
             )
             .tint(Theme.brass)
             HStack {
-                Text("\(PasswordEngine.minLength)")
+                Text("\(PasswordEngine.passwordMinLength)")
                 Spacer()
                 Text("\(PasswordEngine.maxLength)")
             }

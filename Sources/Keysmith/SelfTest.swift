@@ -309,13 +309,19 @@ enum SelfTest {
     }
 
     private static func lengthPresets() -> String? {
+        if PasswordEngine.lengthPresets.contains(12) {
+            return "12-character preset should be gone"
+        }
         for n in PasswordEngine.lengthPresets {
-            if n < PasswordEngine.minLength || n > PasswordEngine.maxLength {
+            if n < PasswordEngine.passwordMinLength || n > PasswordEngine.maxLength {
                 return "preset \(n) out of range"
             }
         }
         if PasswordEngine.clampedLength(0) != PasswordEngine.minLength {
             return "clamp low failed"
+        }
+        if PasswordEngine.clampedPasswordLength(12) != PasswordEngine.passwordMinLength {
+            return "password length should not go below \(PasswordEngine.passwordMinLength)"
         }
         if PasswordEngine.clampedLength(999) != PasswordEngine.maxLength {
             return "clamp high failed"

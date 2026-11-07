@@ -65,7 +65,7 @@ final class AppModel: ObservableObject {
 
         let n = min(PasswordEngine.maxCount, max(1, count))
         var current = options
-        current.length = PasswordEngine.clampedLength(current.length)
+        current.length = PasswordEngine.clampedPasswordLength(current.length)
         options.length = current.length
 
         do {
@@ -112,7 +112,7 @@ final class AppModel: ObservableObject {
             }
         } catch PasswordEngineError.invalidLength {
             isGenerating = false
-            fail("Length must be \(PasswordEngine.minLength)–\(PasswordEngine.maxLength)")
+            fail("Length must be \(PasswordEngine.passwordMinLength)–\(PasswordEngine.maxLength)")
         } catch PasswordEngineError.emptyCharset {
             isGenerating = false
             fail("Turn on at least one character class")
@@ -133,7 +133,7 @@ final class AppModel: ObservableObject {
     }
 
     func setLength(_ length: Int) {
-        options.length = PasswordEngine.clampedLength(length)
+        options.length = PasswordEngine.clampedPasswordLength(length)
     }
 
     func toggle(_ cls: CharClass) {
@@ -298,8 +298,8 @@ final class AppModel: ObservableObject {
 
     private func loadPrefs() {
         let storedLength = defaults.integer(forKey: "length")
-        if storedLength >= PasswordEngine.minLength, storedLength <= PasswordEngine.maxLength {
-            options.length = storedLength
+        if storedLength > 0, storedLength <= PasswordEngine.maxLength {
+            options.length = PasswordEngine.clampedPasswordLength(storedLength)
         }
         if defaults.object(forKey: "uppercase") != nil {
             options.uppercase = defaults.bool(forKey: "uppercase")
