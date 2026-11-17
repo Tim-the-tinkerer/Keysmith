@@ -18,6 +18,7 @@ enum SelfTest {
         if let err = lengthPresets() { return err }
         if let err = pinDigitsOnly() { return err }
         if let err = binaryExport() { return err }
+        if let err = HexSelfTest.run() { return err }
         return nil
     }
 

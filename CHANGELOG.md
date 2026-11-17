@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 — 2026-11-16
+
+- Password and Hex share one window. Hex is the old Nybble key generator: bit sizes, UUID v4, formats, dump, and fingerprint
+- Key menu: Password ⌘1, Hex ⌘2. Each workspace keeps its own session
+- One clipboard timer for both. Hex settings are stored apart from password settings
+- CLI accepts the old password flags and the old hex flags. The two sets cannot be mixed
+
 ## 1.0.2 — 2026-11-07
 
 - Password length starts at 16. The 12 preset is gone, and the slider cannot go below 16

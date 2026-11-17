@@ -1,10 +1,11 @@
 import AppKit
+import Combine
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
 @MainActor
-final class AppModel: ObservableObject {
+final class PasswordModel: ObservableObject {
     @Published var options = PasswordOptions()
     @Published var count: Int = 1
     @Published var clipboardClear: ClipboardClearDelay = .thirty
@@ -18,9 +19,10 @@ final class AppModel: ObservableObject {
     @Published var copiedFlash = false
     @Published var isGenerating = false
 
+    let clipboard: ClipboardSession
     private var scrambleTask: Task<Void, Never>?
-    private var clipboardTask: Task<Void, Never>?
-    private var clipboardToken: Int?
+    private var clearSink: AnyCancellable?
+    private var remainingSink: AnyCancellable?
     private let defaults = UserDefaults.standard
 
     static let maxHistory = 40
@@ -53,8 +55,31 @@ final class AppModel: ObservableObject {
         return selected.options != options
     }
 
-    init() {
+    init(clipboard: ClipboardSession) {
+        self.clipboard = clipboard
+        clipboardClear = clipboard.clear
+        bindClipboard()
         loadPrefs()
+    }
+
+    private func bindClipboard() {
+        clearSink = clipboard.$clear.dropFirst().sink { [weak self] delay in
+            guard let self, self.clipboardClear != delay else { return }
+            self.clipboardClear = delay
+        }
+        remainingSink = clipboard.$secondsRemaining.dropFirst().sink { [weak self] remaining in
+            self?.clipboardSecondsRemaining = remaining
+        }
+    }
+
+    private var didOpen = false
+
+    func openIfNeeded() {
+        guard !didOpen else { return }
+        didOpen = true
+        if passwords.isEmpty {
+            generate()
+        }
     }
 
     func generate() {
@@ -165,7 +190,7 @@ final class AppModel: ObservableObject {
     func copySelected() {
         let text = displayPassword
         guard !text.isEmpty, scramble == nil else { return }
-        writePasteboard(text)
+        clipboard.write(text)
         flash(copiedStatus(prefix: "Copied"))
         copiedFlash = true
         Task { @MainActor in
@@ -177,31 +202,22 @@ final class AppModel: ObservableObject {
     func copyAll() {
         let text = passwords.map(\.value).joined(separator: "\n")
         guard !text.isEmpty else { return }
-        writePasteboard(text)
+        clipboard.write(text)
         flash(copiedStatus(prefix: "Copied \(passwords.count) password\(passwords.count == 1 ? "" : "s")"))
     }
 
     func setClipboardDelay(_ delay: ClipboardClearDelay) {
         clipboardClear = delay
-        persistPrefs()
-        if delay == .off {
-            cancelClipboardTimer()
-            ClipboardWatch.forget()
-        }
+        clipboard.setDelay(delay)
     }
 
     func clearClipboardNow() {
-        cancelClipboardTimer()
-        ClipboardWatch.forget()
-        NSPasteboard.general.clearContents()
-        clipboardToken = nil
+        clipboard.clearNow()
         flash("Clipboard cleared")
     }
 
     func flushClipboardIfPending() {
-        cancelClipboardTimer()
-        if ClipboardWatch.clearIfOwned() {
-            clipboardToken = nil
+        if clipboard.flushIfPending() {
             flash("Clipboard cleared")
         }
     }
@@ -293,7 +309,6 @@ final class AppModel: ObservableObject {
         defaults.set(options.specialKind.rawValue, forKey: "specialKind")
         defaults.set(options.customSpecials, forKey: "customSpecials")
         defaults.set(count, forKey: "count")
-        defaults.set(clipboardClear.rawValue, forKey: ClipboardClear.defaultsKey)
     }
 
     private func loadPrefs() {
@@ -330,72 +345,13 @@ final class AppModel: ObservableObject {
         if storedCount >= 1, storedCount <= PasswordEngine.maxCount {
             count = storedCount
         }
-        if defaults.object(forKey: ClipboardClear.defaultsKey) != nil {
-            clipboardClear = ClipboardClearDelay.parse(
-                seconds: defaults.integer(forKey: ClipboardClear.defaultsKey)
-            )
-        }
-    }
-
-    private func writePasteboard(_ text: String) {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(text, forType: .string)
-        clipboardToken = pb.changeCount
-        if clipboardClear == .off {
-            ClipboardWatch.forget()
-        } else {
-            ClipboardWatch.remember(changeCount: pb.changeCount)
-        }
-        scheduleClipboardClear()
     }
 
     private func copiedStatus(prefix: String) -> String {
-        if clipboardClear == .off {
+        if clipboard.clear == .off {
             return prefix
         }
-        return "\(prefix) · clears in \(clipboardClear.seconds)s"
-    }
-
-    private func scheduleClipboardClear() {
-        clipboardTask?.cancel()
-        let seconds = clipboardClear.seconds
-        guard seconds > 0, let token = clipboardToken else {
-            clipboardSecondsRemaining = nil
-            return
-        }
-        clipboardSecondsRemaining = seconds
-        clipboardTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            for remaining in stride(from: seconds, through: 1, by: -1) {
-                if Task.isCancelled { return }
-                self.clipboardSecondsRemaining = remaining
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-            }
-            if Task.isCancelled { return }
-            self.clipboardSecondsRemaining = nil
-            self.clearPasteboard(ifToken: token)
-        }
-    }
-
-    private func cancelClipboardTimer() {
-        clipboardTask?.cancel()
-        clipboardTask = nil
-        clipboardSecondsRemaining = nil
-    }
-
-    private func clearPasteboard(ifToken token: Int) {
-        let pb = NSPasteboard.general
-        guard ClipboardClear.shouldClear(
-            copiedChangeCount: token,
-            currentChangeCount: pb.changeCount
-        ) else { return }
-        pb.clearContents()
-        if clipboardToken == token {
-            clipboardToken = nil
-        }
-        ClipboardWatch.forget()
-        flash("Clipboard cleared")
+        return "\(prefix) · clears in \(clipboard.clear.seconds)s"
     }
 
     private func flash(_ message: String) {
